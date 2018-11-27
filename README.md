@@ -34,8 +34,20 @@ You can use the GraphQL Playground in order to make GraphQL Queries against our 
 
 ![GraphQL Playground](https://user-images.githubusercontent.com/1083296/49106315-25959e00-f283-11e8-98a5-ee9ba7016cf4.jpg)
 
-Alternatively you can make GraphQL queries with any other client using [http://localhost:8080/query](http://localhost:8080/query).
+Alternatively you can make GraphQL queries with any other client by using [http://localhost:8080/query](http://localhost:8080/query) as endpoint.
 
- 
+## Deployment
 
+### Kubernetes
 
+This project includes some basic config files for deploying this GraphQL API in to a Kubernetes Cluster.
+You will find them at [deployments/kubernetes](deployments/kubernetes).
+
+Note that the service described in `service.yaml` will deploy a Kubernetes service of type `LoadBalancer`. That means that an [Ingress Controller](https://kubernetes.io/docs/concepts/services-networking/ingress/) would be needed in order to create and assign external IP's to such service.
+I recommend you to use [GKE](https://cloud.google.com/kubernetes-engine) or any similar cloud solution for a quick start.
+
+```bash
+kubectl create -f deployments/kubernetes
+```
+
+Alternatively you could deploy your API by using just the Deployment workload described in `deployment.yaml` and later associate to it your own service.  
