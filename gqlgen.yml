@@ -1,0 +1,26 @@
+# Refer to https://gqlgen.com/config/
+# for detailed .gqlgen.yml documentation.
+
+schema: schema.graphql
+exec:
+  filename: internal/workshop/generated.go
+  package: workshop
+model:
+  filename: internal/workshop/models_gen.go
+  package: workshop
+resolver:
+  filename: internal/workshop/resolver.go
+  type: Resolver
+  package: workshop
+
+models:
+  Event:
+    model: github.com/smoya/graphql-go-workshop/pkg/meetup.Event
+  Venue:
+    model: github.com/smoya/graphql-go-workshop/pkg/meetup.Venue
+  Group:
+    model: github.com/smoya/graphql-go-workshop/pkg/meetup.Group
+  Rsvp:
+    model: github.com/smoya/graphql-go-workshop/pkg/meetup.RSVP
+  Member:
+    model: github.com/smoya/graphql-go-workshop/pkg/meetup.Member

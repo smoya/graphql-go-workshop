@@ -1,0 +1,62 @@
+type Query {
+    group(name: String!): Group
+}
+
+type Event {
+  id: String!
+  name: String!
+  description: String
+  created: String!
+  duration: Int
+  rsvpLimit: Int
+  status: EventStatus!
+  time: String!
+  waitlistCount: Int
+  yesRSVPCount: Int
+  venue: Venue!
+  link: String
+  rsvp(response: RsvpResponse): [Rsvp]
+}
+
+type Venue {
+    id: Int!
+    name: String!
+    address: String
+    city: String
+    country: String
+}
+
+type Group {
+    id: Int!
+    name: String!
+    who: String
+    events(status: EventStatus): [Event]
+}
+
+type Rsvp {
+    created: String!
+    updated: String!
+    response: String!
+    guests: Int
+    member: Member!
+}
+
+enum RsvpResponse{
+  yes
+  no
+}
+
+type Member {
+    id: Int!
+    name: String!
+    isHost: Boolean!
+}
+
+enum EventStatus {
+    cancelled
+    draft
+    past,
+    proposed
+    suggested
+    upcoming
+}

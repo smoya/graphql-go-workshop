@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql-go-workshop
+spec:
+  selector:
+    matchLabels:
+      app: graphql-go-workshop
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: graphql-go-workshop
+    spec:
+      containers:
+        - name: graphql-go-workshop
+          image: "smoya/graphql-go-workshop:latest"
+          env:
+            - name: "WORKSHOP_MEETUPAPIKEY"
+              valueFrom:
+                secretKeyRef:
+                  name: meetup-apikey # kubectl create secret generic meetup-apikey --from-file=/tmp/meetup-apikey
