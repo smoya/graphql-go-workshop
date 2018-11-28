@@ -24,3 +24,5 @@ models:
     model: github.com/smoya/graphql-go-workshop/pkg/meetup.RSVP
   Member:
     model: github.com/smoya/graphql-go-workshop/pkg/meetup.Member
+  Comment:
+    model: github.com/smoya/graphql-go-workshop/pkg/meetup.Comment

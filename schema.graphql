@@ -2,6 +2,13 @@ type Query {
     group(name: String!): Group
 }
 
+type Group {
+    id: Int!
+    name: String!
+    who: String
+    events(status: EventStatus): [Event]
+}
+
 type Event {
   id: String!
   name: String!
@@ -18,19 +25,21 @@ type Event {
   rsvp(response: RsvpResponse): [Rsvp]
 }
 
+enum EventStatus {
+    cancelled
+    draft
+    past,
+    proposed
+    suggested
+    upcoming
+}
+
 type Venue {
     id: Int!
     name: String!
     address: String
     city: String
     country: String
-}
-
-type Group {
-    id: Int!
-    name: String!
-    who: String
-    events(status: EventStatus): [Event]
 }
 
 type Rsvp {
@@ -52,11 +61,14 @@ type Member {
     isHost: Boolean!
 }
 
-enum EventStatus {
-    cancelled
-    draft
-    past,
-    proposed
-    suggested
-    upcoming
+type Comment {
+    id: Int!
+    comment: String!
+    created: String!
+    likes: Int!
+    member: Member!
+}
+
+type Subscription {
+    commentPosted(groupName: String!, eventID: String!): Comment!
 }

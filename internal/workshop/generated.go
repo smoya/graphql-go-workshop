@@ -31,17 +31,27 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Comment() CommentResolver
 	Event() EventResolver
 	Group() GroupResolver
 	Member() MemberResolver
 	Query() QueryResolver
 	Rsvp() RsvpResolver
+	Subscription() SubscriptionResolver
 }
 
 type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	Comment struct {
+		Id      func(childComplexity int) int
+		Comment func(childComplexity int) int
+		Created func(childComplexity int) int
+		Likes   func(childComplexity int) int
+		Member  func(childComplexity int) int
+	}
+
 	Event struct {
 		Id            func(childComplexity int) int
 		Name          func(childComplexity int) int
@@ -83,6 +93,10 @@ type ComplexityRoot struct {
 		Member   func(childComplexity int) int
 	}
 
+	Subscription struct {
+		CommentPosted func(childComplexity int, groupName string, eventID string) int
+	}
+
 	Venue struct {
 		Id      func(childComplexity int) int
 		Name    func(childComplexity int) int
@@ -92,6 +106,10 @@ type ComplexityRoot struct {
 	}
 }
 
+type CommentResolver interface {
+	Created(ctx context.Context, obj *meetup.Comment) (string, error)
+	Likes(ctx context.Context, obj *meetup.Comment) (int, error)
+}
 type EventResolver interface {
 	Created(ctx context.Context, obj *meetup.Event) (string, error)
 
@@ -112,6 +130,9 @@ type QueryResolver interface {
 type RsvpResolver interface {
 	Created(ctx context.Context, obj *meetup.RSVP) (string, error)
 	Updated(ctx context.Context, obj *meetup.RSVP) (string, error)
+}
+type SubscriptionResolver interface {
+	CommentPosted(ctx context.Context, groupName string, eventID string) (<-chan meetup.Comment, error)
 }
 
 func field_Event_rsvp_args(rawArgs map[string]interface{}) (map[string]interface{}, error) {
@@ -184,6 +205,30 @@ func field_Query___type_args(rawArgs map[string]interface{}) (map[string]interfa
 
 }
 
+func field_Subscription_commentPosted_args(rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["groupName"]; ok {
+		var err error
+		arg0, err = graphql.UnmarshalString(tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["groupName"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["eventID"]; ok {
+		var err error
+		arg1, err = graphql.UnmarshalString(tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["eventID"] = arg1
+	return args, nil
+
+}
+
 func field___Type_fields_args(rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	args := map[string]interface{}{}
 	var arg0 bool
@@ -226,6 +271,41 @@ func (e *executableSchema) Schema() *ast.Schema {
 
 func (e *executableSchema) Complexity(typeName, field string, childComplexity int, rawArgs map[string]interface{}) (int, bool) {
 	switch typeName + "." + field {
+
+	case "Comment.id":
+		if e.complexity.Comment.Id == nil {
+			break
+		}
+
+		return e.complexity.Comment.Id(childComplexity), true
+
+	case "Comment.comment":
+		if e.complexity.Comment.Comment == nil {
+			break
+		}
+
+		return e.complexity.Comment.Comment(childComplexity), true
+
+	case "Comment.created":
+		if e.complexity.Comment.Created == nil {
+			break
+		}
+
+		return e.complexity.Comment.Created(childComplexity), true
+
+	case "Comment.likes":
+		if e.complexity.Comment.Likes == nil {
+			break
+		}
+
+		return e.complexity.Comment.Likes(childComplexity), true
+
+	case "Comment.member":
+		if e.complexity.Comment.Member == nil {
+			break
+		}
+
+		return e.complexity.Comment.Member(childComplexity), true
 
 	case "Event.id":
 		if e.complexity.Event.Id == nil {
@@ -424,6 +504,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Rsvp.Member(childComplexity), true
 
+	case "Subscription.commentPosted":
+		if e.complexity.Subscription.CommentPosted == nil {
+			break
+		}
+
+		args, err := field_Subscription_commentPosted_args(rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Subscription.CommentPosted(childComplexity, args["groupName"].(string), args["eventID"].(string)), true
+
 	case "Venue.id":
 		if e.complexity.Venue.Id == nil {
 			break
@@ -484,12 +576,216 @@ func (e *executableSchema) Mutation(ctx context.Context, op *ast.OperationDefini
 }
 
 func (e *executableSchema) Subscription(ctx context.Context, op *ast.OperationDefinition) func() *graphql.Response {
-	return graphql.OneShot(graphql.ErrorResponse(ctx, "subscriptions are not supported"))
+	ec := executionContext{graphql.GetRequestContext(ctx), e}
+
+	next := ec._Subscription(ctx, op.SelectionSet)
+	if ec.Errors != nil {
+		return graphql.OneShot(&graphql.Response{Data: []byte("null"), Errors: ec.Errors})
+	}
+
+	var buf bytes.Buffer
+	return func() *graphql.Response {
+		buf := ec.RequestMiddleware(ctx, func(ctx context.Context) []byte {
+			buf.Reset()
+			data := next()
+
+			if data == nil {
+				return nil
+			}
+			data.MarshalGQL(&buf)
+			return buf.Bytes()
+		})
+
+		if buf == nil {
+			return nil
+		}
+
+		return &graphql.Response{
+			Data:       buf,
+			Errors:     ec.Errors,
+			Extensions: ec.Extensions,
+		}
+	}
 }
 
 type executionContext struct {
 	*graphql.RequestContext
 	*executableSchema
+}
+
+var commentImplementors = []string{"Comment"}
+
+// nolint: gocyclo, errcheck, gas, goconst
+func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, obj *meetup.Comment) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, commentImplementors)
+
+	var wg sync.WaitGroup
+	out := graphql.NewOrderedMap(len(fields))
+	invalid := false
+	for i, field := range fields {
+		out.Keys[i] = field.Alias
+
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Comment")
+		case "id":
+			out.Values[i] = ec._Comment_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "comment":
+			out.Values[i] = ec._Comment_comment(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "created":
+			wg.Add(1)
+			go func(i int, field graphql.CollectedField) {
+				out.Values[i] = ec._Comment_created(ctx, field, obj)
+				if out.Values[i] == graphql.Null {
+					invalid = true
+				}
+				wg.Done()
+			}(i, field)
+		case "likes":
+			wg.Add(1)
+			go func(i int, field graphql.CollectedField) {
+				out.Values[i] = ec._Comment_likes(ctx, field, obj)
+				if out.Values[i] == graphql.Null {
+					invalid = true
+				}
+				wg.Done()
+			}(i, field)
+		case "member":
+			out.Values[i] = ec._Comment_member(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	wg.Wait()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _Comment_id(ctx context.Context, field graphql.CollectedField, obj *meetup.Comment) graphql.Marshaler {
+	rctx := &graphql.ResolverContext{
+		Object: "Comment",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	return graphql.MarshalInt(res)
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _Comment_comment(ctx context.Context, field graphql.CollectedField, obj *meetup.Comment) graphql.Marshaler {
+	rctx := &graphql.ResolverContext{
+		Object: "Comment",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Comment, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	return graphql.MarshalString(res)
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _Comment_created(ctx context.Context, field graphql.CollectedField, obj *meetup.Comment) graphql.Marshaler {
+	rctx := &graphql.ResolverContext{
+		Object: "Comment",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Comment().Created(rctx, obj)
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	return graphql.MarshalString(res)
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _Comment_likes(ctx context.Context, field graphql.CollectedField, obj *meetup.Comment) graphql.Marshaler {
+	rctx := &graphql.ResolverContext{
+		Object: "Comment",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Comment().Likes(rctx, obj)
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	return graphql.MarshalInt(res)
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _Comment_member(ctx context.Context, field graphql.CollectedField, obj *meetup.Comment) graphql.Marshaler {
+	rctx := &graphql.ResolverContext{
+		Object: "Comment",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Member, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(meetup.Member)
+	rctx.Result = res
+
+	return ec._Member(ctx, field.Selections, &res)
 }
 
 var eventImplementors = []string{"Event"}
@@ -1481,6 +1777,56 @@ func (ec *executionContext) _Rsvp_member(ctx context.Context, field graphql.Coll
 	rctx.Result = res
 
 	return ec._Member(ctx, field.Selections, &res)
+}
+
+var subscriptionImplementors = []string{"Subscription"}
+
+// nolint: gocyclo, errcheck, gas, goconst
+func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func() graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, subscriptionImplementors)
+	ctx = graphql.WithResolverContext(ctx, &graphql.ResolverContext{
+		Object: "Subscription",
+	})
+	if len(fields) != 1 {
+		ec.Errorf(ctx, "must subscribe to exactly one stream")
+		return nil
+	}
+
+	switch fields[0].Name {
+	case "commentPosted":
+		return ec._Subscription_commentPosted(ctx, fields[0])
+	default:
+		panic("unknown field " + strconv.Quote(fields[0].Name))
+	}
+}
+
+func (ec *executionContext) _Subscription_commentPosted(ctx context.Context, field graphql.CollectedField) func() graphql.Marshaler {
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := field_Subscription_commentPosted_args(rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	ctx = graphql.WithResolverContext(ctx, &graphql.ResolverContext{
+		Field: field,
+	})
+	rctx := ctx // FIXME: subscriptions are missing request middleware stack https://github.com/99designs/gqlgen/issues/259
+	results, err := ec.resolvers.Subscription().CommentPosted(rctx, args["groupName"].(string), args["eventID"].(string))
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-results
+		if !ok {
+			return nil
+		}
+		var out graphql.OrderedMap
+		out.Add(field.Alias, func() graphql.Marshaler {
+			return ec._Comment(ctx, field.Selections, &res)
+		}())
+		return &out
+	}
 }
 
 var venueImplementors = []string{"Venue"}
@@ -2967,6 +3313,13 @@ var parsedSchema = gqlparser.MustLoadSchema(
     group(name: String!): Group
 }
 
+type Group {
+    id: Int!
+    name: String!
+    who: String
+    events(status: EventStatus): [Event]
+}
+
 type Event {
   id: String!
   name: String!
@@ -2983,19 +3336,21 @@ type Event {
   rsvp(response: RsvpResponse): [Rsvp]
 }
 
+enum EventStatus {
+    cancelled
+    draft
+    past,
+    proposed
+    suggested
+    upcoming
+}
+
 type Venue {
     id: Int!
     name: String!
     address: String
     city: String
     country: String
-}
-
-type Group {
-    id: Int!
-    name: String!
-    who: String
-    events(status: EventStatus): [Event]
 }
 
 type Rsvp {
@@ -3017,12 +3372,16 @@ type Member {
     isHost: Boolean!
 }
 
-enum EventStatus {
-    cancelled
-    draft
-    past,
-    proposed
-    suggested
-    upcoming
-}`},
+type Comment {
+    id: Int!
+    comment: String!
+    created: String!
+    likes: Int!
+    member: Member!
+}
+
+type Subscription {
+    commentPosted(groupName: String!, eventID: String!): Comment!
+}
+`},
 )

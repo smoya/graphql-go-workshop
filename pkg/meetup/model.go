@@ -72,3 +72,13 @@ type RSVP struct {
 	Guests   int    `json:"guests"`
 	Member   Member `json:"member"`
 }
+
+// Comment represents a commend in any Meetup.com group or event.
+type Comment struct {
+	ID        int    `json:"id"`
+	Comment   string `json:"comment"`
+	Link      string `json:"link"`
+	Created   int64  `json:"created"`
+	LikeCount int    `json:"like_count"`
+	Member    Member `json:"member"`
+}

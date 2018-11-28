@@ -128,3 +128,21 @@ func (c *Client) RSVPs(groupName, eventID string, response *string) ([]*RSVP, er
 
 	return rsvps, nil
 }
+
+// Comments returns the list of comments of an event.
+func (c *Client) Comments(groupName, eventID string) ([]*Comment, error) {
+	r, err := c.doGet(fmt.Sprintf("%s/events/%s/comments", groupName, eventID))
+	if err != nil {
+		return nil, err
+	}
+
+	defer r.Body.Close() // nolint: errcheck
+
+	var comments []*Comment
+	err = json.NewDecoder(r.Body).Decode(&comments)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid or missing payload")
+	}
+
+	return comments, nil
+}

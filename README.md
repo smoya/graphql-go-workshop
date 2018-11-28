@@ -6,6 +6,10 @@ Source code of a simple GraphQL API that queries [Meetup.com API](https://secure
 
 Used as part of a live coding talk at [GolangBCN November's 2018 Meetup](https://www.meetup.com/Golang-Barcelona/events/256537826/).
 
+## Workshop
+
+Please refer to [/docs](/docs).
+
 ## Installation
 
 ### Docker

@@ -2,8 +2,10 @@
 
 package workshop
 
+import "C"
 import (
 	context "context"
+	"log"
 	"time"
 
 	meetup "github.com/smoya/graphql-go-workshop/pkg/meetup"
@@ -12,6 +14,16 @@ import (
 // Resolver is the root GraphQL Resolver.
 type Resolver struct {
 	C *meetup.Client
+}
+
+// Comment returns a CommentResolver.
+func (r *Resolver) Comment() CommentResolver {
+	return &commentResolver{r}
+}
+
+// Subscription returns a SubscriptionResolver
+func (r *Resolver) Subscription() SubscriptionResolver {
+	return &subscriptionResolver{r}
 }
 
 // Group returns a GroupResolver
@@ -37,6 +49,51 @@ func (r *Resolver) Query() QueryResolver {
 // Rsvp returns a RsvpResolver
 func (r *Resolver) Rsvp() RsvpResolver {
 	return &rsvpResolver{r}
+}
+
+type commentResolver struct{ *Resolver }
+
+func (commentResolver) Likes(ctx context.Context, obj *meetup.Comment) (int, error) {
+	return obj.LikeCount, nil
+}
+
+func (commentResolver) Created(ctx context.Context, obj *meetup.Comment) (string, error) {
+	return time.Unix(obj.Created/1000, 0).Format(time.RFC822), nil
+}
+
+type subscriptionResolver struct{ *Resolver }
+
+func (r *subscriptionResolver) CommentPosted(ctx context.Context, groupName string, eventID string) (<-chan meetup.Comment, error) {
+	// ideally this should go in to a redis or similar.
+	sentComments := make(map[int]struct{})
+	commentsChan := make(chan meetup.Comment)
+
+	// ideally this should be configurable
+	t := time.NewTicker(time.Second * 5)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				comments, err := r.C.Comments(groupName, eventID)
+				if err != nil {
+					log.Printf("error finding comments for group %s and event %s. %s\n", groupName, eventID, err.Error())
+					continue
+				}
+
+				for _, c := range comments {
+					if _, ok := sentComments[c.ID]; !ok {
+						commentsChan <- *c
+						sentComments[c.ID] = struct{}{}
+					}
+				}
+			}
+		}
+
+	}()
+
+	return commentsChan, nil
 }
 
 type eventResolver struct{ *Resolver }
